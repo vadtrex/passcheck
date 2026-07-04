@@ -1,8 +1,22 @@
-import express from 'express';
+import express, { type ErrorRequestHandler } from 'express';
+import { ZodError } from 'zod';
+import { createEvaluateRouter } from './routes/evaluate.js';
+import type { BreachChecker } from './services/strength.js';
+
+export interface AppOptions {
+  breachChecker?: BreachChecker;
+}
+
+// Default breach checker (currently always returns false)
+const defaultBreachChecker: BreachChecker = async () => ({
+  checked: false,
+  breached: false,
+  occurrences: null
+});
 
 // Builds the Express app. Kept as a factory so tests can run
 // isolated instances without starting a real HTTP server
-export function createApp() {
+export function createApp(options: AppOptions = {}) {
   const app = express();
 
   // Placeholder until we implement pino logging
@@ -34,11 +48,12 @@ export function createApp() {
   });
 
   // Password evaluation endpoint
-  app.post('/v1/password/evaluate', (request, response) => {
-    response.json({
-      received: Boolean(request.body?.password)
-    });
-  });
+  app.use(
+    '/v1/check-password',
+    createEvaluateRouter({
+      breachChecker: options.breachChecker ?? defaultBreachChecker
+    })
+  );
 
   // Handling of unknown routes
   app.use((_request, response) => {
@@ -48,5 +63,52 @@ export function createApp() {
     });
   });
 
+  // Error handler for converting thrown errors into consistent JSON responses
+  const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
+    if (response.headersSent) {
+      return;
+    }
+
+    if (error instanceof SyntaxError && 'body' in error) {
+      response.status(400).json({
+        error: 'invalid_json',
+        message: 'Request body must be valid JSON.'
+      });
+      return;
+    }
+
+    if (error instanceof ZodError) {
+      response.status(400).json({
+        error: 'validation_failed',
+        details: error.issues.map((issue) => ({
+          path: issue.path.join('.'),
+          message: issue.message
+        }))
+      });
+      return;
+    }
+
+    if (isHttpError(error) && error.type === 'entity.too.large') {
+      response.status(413).json({
+        error: 'payload_too_large',
+        message: 'Request body must not exceed 1 KB.'
+      });
+      return;
+    }
+
+    app.locals.logger.error({ error }, 'unhandled request error');
+    response.status(500).json({
+      error: 'internal_error',
+      message: 'Unexpected error while evaluating the password.'
+    });
+  };
+
+  app.use(errorHandler);
+
   return app;
+}
+
+// Helper function to check if the error is an HTTP error
+function isHttpError(error: unknown): error is { type?: string } {
+  return typeof error === 'object' && error !== null && 'type' in error;
 }
