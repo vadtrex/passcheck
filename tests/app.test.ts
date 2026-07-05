@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createApp } from '../src/app.js';
 import type { BreachChecker } from '../src/services/hibp.js';
 
-const evaluatePath = '/v1/check-password/evaluate';
+const evaluatePath = '/v1/password/evaluate';
 const strongPassword = 'Panoramic-BlueOrbit-9341-walnut-vivid!';
 
 describe('password strength API', () => {

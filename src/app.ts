@@ -55,7 +55,7 @@ export function createApp(options: AppOptions = {}) {
 
   // Password evaluation endpoint
   app.use(
-    '/v1/check-password',
+    '/v1/password',
     createEvaluateRouter({
       breachChecker: options.breachChecker ?? checkPwnedPassword
     })
