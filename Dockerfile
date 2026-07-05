@@ -5,8 +5,10 @@ RUN npm ci
 
 FROM deps AS build
 WORKDIR /app
-COPY tsconfig.json ./
+COPY tsconfig.json vitest.config.ts ./
 COPY src ./src
+COPY tests ./tests
+RUN npm test
 RUN npm run build
 
 FROM node:22-alpine AS runtime
@@ -19,5 +21,3 @@ USER node
 EXPOSE 3000
 
 CMD ["node", "dist/index.js"]
-
-
