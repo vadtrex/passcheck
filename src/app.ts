@@ -2,6 +2,7 @@ import express, { type ErrorRequestHandler } from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { pinoHttp } from 'pino-http';
+import pino, { type DestinationStream } from 'pino';
 import { ZodError } from 'zod';
 import { createEvaluateRouter } from './routes/evaluate.js';
 import { checkPwnedPassword, type BreachChecker } from './services/hibp.js';
@@ -10,6 +11,13 @@ export interface AppOptions {
   breachChecker?: BreachChecker;
   // Pass false in tests to keep output quiet
   logger?: boolean;
+  // Optional stream for capturing logs in tests
+  logStream?: DestinationStream;
+  // Override rate limit settings (useful in tests)
+  rateLimit?: {
+    windowMs: number;
+    limit: number;
+  };
 }
 
 // Builds the Express app. Kept as a factory so tests can run
@@ -20,12 +28,27 @@ export function createApp(options: AppOptions = {}) {
 
   const logger = pinoHttp({
     enabled: loggerEnabled,
+    stream: options.logStream,
+    serializers: {
+      req(request) {
+        const serialized = pino.stdSerializers.req(request);
+        const body = request.raw?.body;
+
+        return body === undefined ? serialized : { ...serialized, body };
+      }
+    },
     redact: {
       paths: [
         'req.body.password',
+        'req.body.username',
+        'req.body.email',
         'res.body.password',
         'password',
         '*.password',
+        'username',
+        '*.username',
+        'email',
+        '*.email',
         'req.headers.authorization'
       ],
       censor: '[REDACTED]'
@@ -38,8 +61,8 @@ export function createApp(options: AppOptions = {}) {
   app.use(helmet());
   app.use(
     rateLimit({
-      windowMs: 15 * 60 * 1000,
-      limit: 100,
+      windowMs: options.rateLimit?.windowMs ?? 15 * 60 * 1000,
+      limit: options.rateLimit?.limit ?? 100,
       standardHeaders: true,
       legacyHeaders: false
     })
