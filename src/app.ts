@@ -1,39 +1,52 @@
 import express, { type ErrorRequestHandler } from 'express';
+import helmet from 'helmet';
+import rateLimit from 'express-rate-limit';
+import { pinoHttp } from 'pino-http';
 import { ZodError } from 'zod';
 import { createEvaluateRouter } from './routes/evaluate.js';
 import { checkPwnedPassword, type BreachChecker } from './services/hibp.js';
 
 export interface AppOptions {
   breachChecker?: BreachChecker;
+  // Pass false in tests to keep output quiet
+  logger?: boolean;
 }
 
 // Builds the Express app. Kept as a factory so tests can run
 // isolated instances without starting a real HTTP server
 export function createApp(options: AppOptions = {}) {
   const app = express();
+  const loggerEnabled = options.logger ?? process.env.NODE_ENV !== 'test';
 
-  // Placeholder until we implement pino logging
-  // (index.ts already expects app.locals.logger to exist)
-  // TODO: Replace with pino
-  app.locals.logger = {
-    info: (obj: object, msg?: string) => {
-      if (msg) {
-        console.log(msg, obj);
-      } else {
-        console.log(obj);
-      }
-    },
-    error: (obj: object, msg?: string) => {
-      if (msg) {
-        console.error(msg, obj);
-      } else {
-        console.error(obj);
-      }
+  const logger = pinoHttp({
+    enabled: loggerEnabled,
+    redact: {
+      paths: [
+        'req.body.password',
+        'res.body.password',
+        'password',
+        '*.password',
+        'req.headers.authorization'
+      ],
+      censor: '[REDACTED]'
     }
-  };
+  });
 
+  app.locals.logger = logger.logger;
+  app.disable('x-powered-by');
+
+  app.use(helmet());
+  app.use(
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 100,
+      standardHeaders: true,
+      legacyHeaders: false
+    })
+  );
   // Check if the request body is within the 1 KB limit (to prevent abuse)
   app.use(express.json({ limit: '1kb', strict: true }));
+  app.use(logger);
 
   // Docker health check
   app.get('/healthz', (_request, response) => {
@@ -57,7 +70,7 @@ export function createApp(options: AppOptions = {}) {
   });
 
   // Error handler for converting thrown errors into consistent JSON responses
-  const errorHandler: ErrorRequestHandler = (error, _request, response, _next) => {
+  const errorHandler: ErrorRequestHandler = (error, request, response, _next) => {
     if (response.headersSent) {
       return;
     }
@@ -89,7 +102,7 @@ export function createApp(options: AppOptions = {}) {
       return;
     }
 
-    app.locals.logger.error({ error }, 'unhandled request error');
+    request.log.error({ error }, 'unhandled request error');
     response.status(500).json({
       error: 'internal_error',
       message: 'Unexpected error while evaluating the password.'
