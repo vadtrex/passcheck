@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import type { BreachChecker } from '../services/strength.js';
+import type { BreachChecker } from '../services/hibp.js';
 import { evaluatePasswordStrength } from '../services/strength.js';
 
 // Helper function to parse optional text ("" as undefined)

@@ -1,18 +1,11 @@
 import express, { type ErrorRequestHandler } from 'express';
 import { ZodError } from 'zod';
 import { createEvaluateRouter } from './routes/evaluate.js';
-import type { BreachChecker } from './services/strength.js';
+import { checkPwnedPassword, type BreachChecker } from './services/hibp.js';
 
 export interface AppOptions {
   breachChecker?: BreachChecker;
 }
-
-// Default breach checker (currently always returns false)
-const defaultBreachChecker: BreachChecker = async () => ({
-  checked: false,
-  breached: false,
-  occurrences: null
-});
 
 // Builds the Express app. Kept as a factory so tests can run
 // isolated instances without starting a real HTTP server
@@ -51,7 +44,7 @@ export function createApp(options: AppOptions = {}) {
   app.use(
     '/v1/check-password',
     createEvaluateRouter({
-      breachChecker: options.breachChecker ?? defaultBreachChecker
+      breachChecker: options.breachChecker ?? checkPwnedPassword
     })
   );
 

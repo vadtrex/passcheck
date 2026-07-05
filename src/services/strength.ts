@@ -1,20 +1,7 @@
 import { zxcvbn, zxcvbnOptions } from '@zxcvbn-ts/core';
 import * as zxcvbnCommonPackage from '@zxcvbn-ts/language-common';
 import * as zxcvbnEnPackage from '@zxcvbn-ts/language-en';
-
-export type BreachResult =
-  | {
-      checked: true;
-      breached: boolean;
-      occurrences: number;
-    }
-  | {
-      checked: false;
-      breached: false;
-      occurrences: null;
-    };
-
-export type BreachChecker = (password: string) => Promise<BreachResult>;
+import type { BreachChecker, BreachResult } from './hibp.js';
 
 export type StrengthLabel = 'very-weak' | 'weak' | 'fair' | 'strong' | 'very-strong';
 
@@ -145,7 +132,7 @@ function buildFeedback(
     suggestions.add('Do not reuse passwords that may have been exposed elsewhere.');
   }
 
-  // With the default unchecked breach checker this always fires for now.
+  // Shown when HIBP is down or times out - local scoring still works.
   if (!breach.checked) {
     suggestions.add('The breach check was unavailable; avoid reusing passwords from other services.');
   }
