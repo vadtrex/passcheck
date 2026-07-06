@@ -7,8 +7,7 @@ Small Express.js microservice for evaluating password strength in regulated envi
 ```bash
 git clone https://github.com/vadtrex/passcheck.git
 cd passcheck
-docker build -t passcheck .
-docker run --rm -p 3000:3000 passcheck
+docker compose up --build
 ```
 
 Verify the service is up:
@@ -215,8 +214,7 @@ Niewielki mikroserwis Express.js do oceny siły haseł w środowiskach regulowan
 ```bash
 git clone https://github.com/vadtrex/passcheck.git
 cd passcheck
-docker build -t passcheck .
-docker run --rm -p 3000:3000 passcheck
+docker compose up --build
 ```
 
 Sprawdzenie, czy usługa działa:
