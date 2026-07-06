@@ -13,6 +13,9 @@
   "license": "ISC",
   "author": "Damian Wojtyczko <damianwojtyczko@gmail.com>",
   "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
