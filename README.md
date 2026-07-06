@@ -27,6 +27,8 @@ curl -X POST http://localhost:3000/v1/password/evaluate \
 
 ## API
 
+OpenAPI 3.1 specification: [`openapi.yaml`](openapi.yaml).
+
 ### `GET /healthz`
 
 Returns:
@@ -131,7 +133,7 @@ Validation rules:
 }
 ```
 
-`429 too_many_requests` — plain-text body from `express-rate-limit` (for example, `Too many requests, please try again later.`). Standard `RateLimit-*` response headers are included.
+`429 too_many_requests` - plain-text body from `express-rate-limit` (for example, `Too many requests, please try again later.`). Standard `RateLimit-*` response headers are included.
 
 `500 internal_error`:
 
@@ -163,7 +165,7 @@ npm run build
 npm start
 ```
 
-The service listens on `HOST` (default `0.0.0.0`) and `PORT` (default `3000`).
+The service listens on `HOST` (default `0.0.0.0`) and `PORT` (default `3000`). Copy `.env.example` to `.env` to override these values for local development.
 
 Manual check:
 
@@ -180,7 +182,25 @@ docker build -t passcheck .
 docker run --rm -p 3000:3000 passcheck
 ```
 
-The Dockerfile is multi-stage, runs tests during build, installs production dependencies only in the runtime image, and runs as the non-root `node` user.
+Or with Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+The Dockerfile is multi-stage, runs tests during build, installs production dependencies only in the runtime image, runs as the non-root `node` user, and includes a `HEALTHCHECK` against `/healthz`.
+
+## Deployment notes
+
+- **Stateless** - no database or persistent storage; instances can be scaled horizontally behind a load balancer.
+- **Outbound access** - the service needs HTTPS egress to `api.pwnedpasswords.com` for breach checks. Without it, evaluation still works locally but `breach.checked` will be `false`.
+- **No built-in authentication** - deploy on an internal network or behind an API gateway / reverse proxy with auth, TLS termination, and additional rate limiting as needed.
+- **Graceful shutdown** - the process handles `SIGTERM` and `SIGINT`, allowing in-flight requests to finish before exit (useful for rolling deploys in Kubernetes).
+- **`checks.noUserInfo` is informational** - it does not affect the `acceptable` field; only zxcvbn score, minimum length, and breach status do.
+
+## CI
+
+GitHub Actions runs `npm run typecheck`, `npm test`, and `docker build` on every push and pull request to `main`.
 
 ---
 
@@ -188,7 +208,7 @@ The Dockerfile is multi-stage, runs tests during build, installs production depe
 
 _Poniższa dokumentacja została przetłumaczona automatycznie z oryginalnej anglojęzycznej wersji._
 
-Niewielki mikroserwis Express.js do oceny siły haseł w środowiskach regulowanych. Ocenia hasła za pomocą [zxcvbn](https://github.com/zxcvbn-ts/zxcvbn), sprawdza je w [Have I Been Pwned](https://haveibeenpwned.com/) z użyciem k-anonimowości (z serwera wychodzi jedynie pierwsze pięć znaków hex skrótu SHA-1) i zwraca ustrukturyzowany werdykt z oceną siły, statusem wycieku oraz praktycznymi wskazówkami. API jest zgodne z wytycznymi NIST SP 800-63B — bez wymuszania składu hasła, zawsze odrzuca hasła z wycieków, a opcjonalna nazwa użytkownika i adres e-mail pomagają wykryć dane osobowe w haśle. Bezstanowy, gotowy do konteneryzacji, przeznaczony do pracy jako wewnętrzna usługa za warstwą uwierzytelniania.
+Niewielki mikroserwis Express.js do oceny siły haseł w środowiskach regulowanych. Ocenia hasła za pomocą [zxcvbn](https://github.com/zxcvbn-ts/zxcvbn), sprawdza je w [Have I Been Pwned](https://haveibeenpwned.com/) z użyciem k-anonimowości (z serwera wychodzi jedynie pierwsze pięć znaków hex skrótu SHA-1) i zwraca ustrukturyzowany werdykt z oceną siły, statusem wycieku oraz praktycznymi wskazówkami. API jest zgodne z wytycznymi NIST SP 800-63B - bez wymuszania składu hasła, zawsze odrzuca hasła z wycieków, a opcjonalna nazwa użytkownika i adres e-mail pomagają wykryć dane osobowe w haśle. Bezstanowy, gotowy do konteneryzacji, przeznaczony do pracy jako wewnętrzna usługa za warstwą uwierzytelniania.
 
 ## Szybki start
 
@@ -214,6 +234,8 @@ curl -X POST http://localhost:3000/v1/password/evaluate \
 ```
 
 ## API
+
+Specyfikacja OpenAPI 3.1: [`openapi.yaml`](openapi.yaml).
 
 ### `GET /healthz`
 
@@ -319,7 +341,7 @@ Zasady walidacji:
 }
 ```
 
-`429 too_many_requests` — ciało odpowiedzi w postaci zwykłego tekstu z `express-rate-limit` (np. `Too many requests, please try again later.`). Dołączane są standardowe nagłówki `RateLimit-*`.
+`429 too_many_requests` - ciało odpowiedzi w postaci zwykłego tekstu z `express-rate-limit` (np. `Too many requests, please try again later.`). Dołączane są standardowe nagłówki `RateLimit-*`.
 
 `500 internal_error`:
 
@@ -351,7 +373,7 @@ npm run build
 npm start
 ```
 
-Usługa nasłuchuje na `HOST` (domyślnie `0.0.0.0`) i `PORT` (domyślnie `3000`).
+Usługa nasłuchuje na `HOST` (domyślnie `0.0.0.0`) i `PORT` (domyślnie `3000`). Skopiuj `.env.example` do `.env`, aby nadpisać te wartości podczas lokalnego rozwoju.
 
 Ręczne sprawdzenie:
 
@@ -368,4 +390,22 @@ docker build -t passcheck .
 docker run --rm -p 3000:3000 passcheck
 ```
 
-Plik Dockerfile jest wieloetapowy: uruchamia testy podczas budowy, w obrazie produkcyjnym instaluje tylko zależności runtime i działa jako użytkownik `node` (nie root).
+Lub przez Docker Compose:
+
+```bash
+docker compose up --build
+```
+
+Plik Dockerfile jest wieloetapowy: uruchamia testy podczas budowy, w obrazie produkcyjnym instaluje tylko zależności runtime, działa jako użytkownik `node` (nie root) i zawiera `HEALTHCHECK` na `/healthz`.
+
+## Wdrożenie
+
+- **Bezstanowy** - brak bazy danych i trwałego storage; instancje można skalować horyzontalnie za load balancerem.
+- **Dostęp wychodzący** - usługa wymaga HTTPS do `api.pwnedpasswords.com` w celu sprawdzania wycieków. Bez tego ocena lokalna nadal działa, ale `breach.checked` będzie `false`.
+- **Brak wbudowanego uwierzytelniania** - wdrażaj w sieci wewnętrznej lub za API gateway / reverse proxy z auth, TLS i dodatkowym rate limitingiem.
+- **Graceful shutdown** - proces obsługuje `SIGTERM` i `SIGINT`, pozwalając dokończyć trwające żądania (przydatne przy rolling deploy w Kubernetes).
+- **`checks.noUserInfo` ma charakter informacyjny** - nie wpływa na pole `acceptable`; liczy się wynik zxcvbn, minimalna długość i status wycieku.
+
+## CI
+
+GitHub Actions uruchamia `npm run typecheck`, `npm test` oraz `docker build` przy każdym pushu i pull requeście do `main`.
