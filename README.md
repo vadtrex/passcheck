@@ -2,6 +2,29 @@
 
 Small Express.js microservice for evaluating password strength in regulated environments. It scores passwords with [zxcvbn](https://github.com/zxcvbn-ts/zxcvbn), checks them against [Have I Been Pwned](https://haveibeenpwned.com/) using k-anonymity (only the first five SHA-1 hash characters leave the server), and returns a structured verdict with strength, breach status, and actionable feedback. The API follows NIST SP 800-63B rules - no forced composition requirements, breached passwords are always rejected, and optional username/email context helps detect personal information in passphrases. Stateless, container-ready, and intended to run as an internal service behind auth layer.
 
+## Quick start
+
+```bash
+git clone https://github.com/vadtrex/passcheck.git
+cd passcheck
+docker build -t passcheck .
+docker run --rm -p 3000:3000 passcheck
+```
+
+Verify the service is up:
+
+```bash
+curl http://localhost:3000/healthz
+```
+
+Evaluate a password:
+
+```bash
+curl -X POST http://localhost:3000/v1/password/evaluate \
+  -H "Content-Type: application/json" \
+  -d "{\"password\":\"Panoramic-BlueOrbit-9341-walnut-vivid!\"}"
+```
+
 ## API
 
 ### `GET /healthz`
@@ -59,6 +82,66 @@ Validation rules:
 - `email` is optional, must be a valid email address, and is capped at 320 characters.
 - Unknown JSON fields are rejected.
 
+### Error responses
+
+| Status | `error` | When |
+|--------|---------|------|
+| `400` | `invalid_json` | Request body is not valid JSON. |
+| `400` | `validation_failed` | Required fields are missing or field values fail validation. |
+| `404` | `not_found` | Route does not exist. |
+| `413` | `payload_too_large` | Request body exceeds the 1 KB limit. |
+| `429` | _(plain text)_ | Rate limit exceeded (100 requests per 15 minutes per IP). |
+| `500` | `internal_error` | Unexpected server error. |
+
+`400 invalid_json`:
+
+```json
+{
+  "error": "invalid_json",
+  "message": "Request body must be valid JSON."
+}
+```
+
+`400 validation_failed`:
+
+```json
+{
+  "error": "validation_failed",
+  "details": [
+    { "path": "password", "message": "password must contain at least 8 characters" }
+  ]
+}
+```
+
+`404 not_found`:
+
+```json
+{
+  "error": "not_found",
+  "message": "The requested resource was not found."
+}
+```
+
+`413 payload_too_large`:
+
+```json
+{
+  "error": "payload_too_large",
+  "message": "Request body must not exceed 1 KB."
+}
+```
+
+`429 too_many_requests` — plain-text body from `express-rate-limit` (for example, `Too many requests, please try again later.`). Standard `RateLimit-*` response headers are included.
+
+`500 internal_error`:
+
+```json
+{
+  "error": "internal_error",
+  "message": "Unexpected error while evaluating the password."
+}
+```
+
 ## Security decisions
 
 - No password composition rules are enforced. This follows NIST SP 800-63B guidance: users are not forced to include arbitrary digits, symbols, or casing patterns.
@@ -106,6 +189,29 @@ The Dockerfile is multi-stage, runs tests during build, installs production depe
 _Poniższa dokumentacja została przetłumaczona automatycznie z oryginalnej anglojęzycznej wersji._
 
 Niewielki mikroserwis Express.js do oceny siły haseł w środowiskach regulowanych. Ocenia hasła za pomocą [zxcvbn](https://github.com/zxcvbn-ts/zxcvbn), sprawdza je w [Have I Been Pwned](https://haveibeenpwned.com/) z użyciem k-anonimowości (z serwera wychodzi jedynie pierwsze pięć znaków hex skrótu SHA-1) i zwraca ustrukturyzowany werdykt z oceną siły, statusem wycieku oraz praktycznymi wskazówkami. API jest zgodne z wytycznymi NIST SP 800-63B — bez wymuszania składu hasła, zawsze odrzuca hasła z wycieków, a opcjonalna nazwa użytkownika i adres e-mail pomagają wykryć dane osobowe w haśle. Bezstanowy, gotowy do konteneryzacji, przeznaczony do pracy jako wewnętrzna usługa za warstwą uwierzytelniania.
+
+## Szybki start
+
+```bash
+git clone https://github.com/vadtrex/passcheck.git
+cd passcheck
+docker build -t passcheck .
+docker run --rm -p 3000:3000 passcheck
+```
+
+Sprawdzenie, czy usługa działa:
+
+```bash
+curl http://localhost:3000/healthz
+```
+
+Ocena hasła:
+
+```bash
+curl -X POST http://localhost:3000/v1/password/evaluate \
+  -H "Content-Type: application/json" \
+  -d "{\"password\":\"Panoramic-BlueOrbit-9341-walnut-vivid!\"}"
+```
 
 ## API
 
@@ -163,6 +269,66 @@ Zasady walidacji:
 - `username` jest opcjonalne, maksymalnie 256 znaków.
 - `email` jest opcjonalny, musi być poprawnym adresem e-mail, maksymalnie 320 znaków.
 - Nieznane pola JSON są odrzucane.
+
+### Odpowiedzi błędów
+
+| Status | `error` | Kiedy |
+|--------|---------|-------|
+| `400` | `invalid_json` | Ciało żądania nie jest poprawnym JSON-em. |
+| `400` | `validation_failed` | Brakuje wymaganych pól lub wartości nie przechodzą walidacji. |
+| `404` | `not_found` | Trasa nie istnieje. |
+| `413` | `payload_too_large` | Ciało żądania przekracza limit 1 KB. |
+| `429` | _(zwykły tekst)_ | Przekroczono limit żądań (100 na 15 minut na IP). |
+| `500` | `internal_error` | Nieoczekiwany błąd serwera. |
+
+`400 invalid_json`:
+
+```json
+{
+  "error": "invalid_json",
+  "message": "Request body must be valid JSON."
+}
+```
+
+`400 validation_failed`:
+
+```json
+{
+  "error": "validation_failed",
+  "details": [
+    { "path": "password", "message": "password must contain at least 8 characters" }
+  ]
+}
+```
+
+`404 not_found`:
+
+```json
+{
+  "error": "not_found",
+  "message": "The requested resource was not found."
+}
+```
+
+`413 payload_too_large`:
+
+```json
+{
+  "error": "payload_too_large",
+  "message": "Request body must not exceed 1 KB."
+}
+```
+
+`429 too_many_requests` — ciało odpowiedzi w postaci zwykłego tekstu z `express-rate-limit` (np. `Too many requests, please try again later.`). Dołączane są standardowe nagłówki `RateLimit-*`.
+
+`500 internal_error`:
+
+```json
+{
+  "error": "internal_error",
+  "message": "Unexpected error while evaluating the password."
+}
+```
 
 ## Decyzje bezpieczeństwa
 

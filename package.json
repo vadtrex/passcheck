@@ -1,7 +1,7 @@
 {
   "name": "passcheck",
   "version": "1.0.0",
-  "description": "",
+  "description": "Password strength evaluation microservice with zxcvbn and Have I Been Pwned breach checks",
   "homepage": "https://github.com/vadtrex/passcheck#readme",
   "bugs": {
     "url": "https://github.com/vadtrex/passcheck/issues"
@@ -11,7 +11,7 @@
     "url": "git+https://github.com/vadtrex/passcheck.git"
   },
   "license": "ISC",
-  "author": "",
+  "author": "Damian Wojtyczko <damianwojtyczko@gmail.com>",
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
