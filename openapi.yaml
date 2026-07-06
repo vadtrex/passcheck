@@ -1,0 +1,243 @@
+openapi: 3.1.0
+info:
+  title: PassCheck API
+  version: 1.0.0
+  description: |
+    Password strength evaluation microservice. Scores passwords with zxcvbn,
+    checks them against Have I Been Pwned using k-anonymity, and returns a
+    structured verdict with strength, breach status, and feedback.
+  license:
+    name: ISC
+    identifier: ISC
+  contact:
+    name: Damian Wojtyczko
+    email: damianwojtyczko@gmail.com
+
+servers:
+  - url: http://localhost:3000
+    description: Local development
+
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      operationId: getHealth
+      tags: [Health]
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+              example:
+                status: ok
+
+  /v1/password/evaluate:
+    post:
+      summary: Evaluate password strength
+      operationId: evaluatePassword
+      tags: [Password]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EvaluateRequest'
+            example:
+              username: okenobi
+              email: o.kenobi@jedi-council.com
+              password: Hello there!
+      responses:
+        '200':
+          description: Password evaluated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EvaluateResponse'
+        '400':
+          description: Invalid JSON or validation failure
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/InvalidJsonError'
+                  - $ref: '#/components/schemas/ValidationError'
+        '413':
+          description: Request body exceeds 1 KB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PayloadTooLargeError'
+        '429':
+          description: Rate limit exceeded (100 requests per 15 minutes per IP)
+          content:
+            text/plain:
+              schema:
+                type: string
+              example: Too many requests, please try again later.
+        '500':
+          description: Unexpected server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InternalError'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+
+    EvaluateRequest:
+      type: object
+      required: [password]
+      additionalProperties: false
+      properties:
+        password:
+          type: string
+          minLength: 8
+          maxLength: 256
+        username:
+          type: string
+          maxLength: 256
+        email:
+          type: string
+          format: email
+          maxLength: 320
+
+    StrengthLabel:
+      type: string
+      enum: [very-weak, weak, fair, strong, very-strong]
+
+    BreachResultChecked:
+      type: object
+      required: [checked, breached, occurrences]
+      properties:
+        checked:
+          type: boolean
+          const: true
+        breached:
+          type: boolean
+        occurrences:
+          type: integer
+          minimum: 0
+
+    BreachResultUnchecked:
+      type: object
+      required: [checked, breached, occurrences]
+      properties:
+        checked:
+          type: boolean
+          const: false
+        breached:
+          type: boolean
+          const: false
+        occurrences:
+          type: 'null'
+
+    EvaluateResponse:
+      type: object
+      required:
+        - score
+        - strength
+        - acceptable
+        - breach
+        - checks
+        - feedback
+        - estimatedCrackTime
+      properties:
+        score:
+          type: integer
+          minimum: 0
+          maximum: 4
+        strength:
+          $ref: '#/components/schemas/StrengthLabel'
+        acceptable:
+          type: boolean
+          description: |
+            True when zxcvbn score is at least 3, password length is valid,
+            and the password is not confirmed breached. When HIBP is unavailable,
+            breach status does not block acceptability.
+        breach:
+          oneOf:
+            - $ref: '#/components/schemas/BreachResultChecked'
+            - $ref: '#/components/schemas/BreachResultUnchecked'
+        checks:
+          type: object
+          required: [minLength, notBreached, noUserInfo]
+          properties:
+            minLength:
+              type: boolean
+            notBreached:
+              type: boolean
+            noUserInfo:
+              type: boolean
+              description: Informational only; does not affect acceptable.
+        feedback:
+          type: object
+          required: [warning, suggestions]
+          properties:
+            warning:
+              type: ['string', 'null']
+            suggestions:
+              type: array
+              items:
+                type: string
+        estimatedCrackTime:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error, message]
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    InvalidJsonError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            error:
+              const: invalid_json
+
+    PayloadTooLargeError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            error:
+              const: payload_too_large
+
+    InternalError:
+      allOf:
+        - $ref: '#/components/schemas/ErrorResponse'
+        - type: object
+          properties:
+            error:
+              const: internal_error
+
+    ValidationError:
+      type: object
+      required: [error, details]
+      properties:
+        error:
+          type: string
+          const: validation_failed
+        details:
+          type: array
+          items:
+            type: object
+            required: [path, message]
+            properties:
+              path:
+                type: string
+              message:
+                type: string
