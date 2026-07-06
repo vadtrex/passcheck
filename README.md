@@ -21,7 +21,7 @@ Evaluate a password:
 ```bash
 curl -X POST http://localhost:3000/v1/password/evaluate \
   -H "Content-Type: application/json" \
-  -d "{\"password\":\"Panoramic-BlueOrbit-9341-walnut-vivid!\"}"
+  -d '{"password":"Panoramic-BlueOrbit-9341-walnut-vivid!"}'
 ```
 
 ## API
@@ -171,7 +171,7 @@ Manual check:
 ```bash
 curl -X POST http://localhost:3000/v1/password/evaluate \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"okenobi\",\"email\":\"o.kenobi@jedi-council.com\",\"password\":\"Panoramic-BlueOrbit-9341-walnut-vivid!\"}"
+  -d '{"username":"okenobi","email":"o.kenobi@jedi-council.com","password":"Panoramic-BlueOrbit-9341-walnut-vivid!"}'
 ```
 
 ## Docker
@@ -228,7 +228,7 @@ Ocena hasła:
 ```bash
 curl -X POST http://localhost:3000/v1/password/evaluate \
   -H "Content-Type: application/json" \
-  -d "{\"password\":\"Panoramic-BlueOrbit-9341-walnut-vivid!\"}"
+  -d '{"password":"Panoramic-BlueOrbit-9341-walnut-vivid!"}'
 ```
 
 ## API
@@ -378,7 +378,7 @@ Ręczne sprawdzenie:
 ```bash
 curl -X POST http://localhost:3000/v1/password/evaluate \
   -H "Content-Type: application/json" \
-  -d "{\"username\":\"okenobi\",\"email\":\"o.kenobi@jedi-council.com\",\"password\":\"Panoramic-BlueOrbit-9341-walnut-vivid!\"}"
+  -d '{"username":"okenobi","email":"o.kenobi@jedi-council.com","password":"Panoramic-BlueOrbit-9341-walnut-vivid!"}'
 ```
 
 ## Docker
